@@ -1,4 +1,4 @@
-importScripts("./WWError.js");
+importScripts("/workerware/WWError.js");
 const dbg = console.log.bind(console, "[WorkerWare]");
 const time = console.time.bind(console, "[WorkerWare]");
 const timeEnd = console.timeEnd.bind(console, "[WorkerWare]");
@@ -41,7 +41,7 @@ const validEvents = [
 
 class WorkerWare {
   constructor(opt) {
-    this._opt = opt;
+    this._opt = Object.assign({}, defaultOpt, opt);
     this._middlewares = [];
   }
   info() {
@@ -82,17 +82,13 @@ class WorkerWare {
     };
     return fn;
   }
-  deleteByID(middlewareID) {
+  deleteByName(middlewareID) {
     if (this._opt.debug) dbg("Deleting middleware:", middlewareID);
     this._middlewares = this._middlewares.filter((mw) => mw.name !== middlewareID);
   }
   deleteByEvent(middlewareEvent) {
     if (this._opt.debug) dbg("Deleting middleware by event:", middlewareEvent);
     this._middlewares = this._middlewares.filter((mw) => !mw.events.includes(middlewareEvent));
-  }
-  deleteByName(middlewareName) {
-    if (this._opt.debug) dbg("Deleting middleware by name:", middlewareName);
-    this._middlewares = this._middlewares.filter((mw) => mw.name !== middlewareName);
   }
   get() {
     return this._middlewares;
