@@ -1,4 +1,4 @@
-importScripts("/workerware/WWError.js");
+importScripts("./WWError.js");
 const dbg = console.log.bind(console, "[WorkerWare]");
 const time = console.time.bind(console, "[WorkerWare]");
 const timeEnd = console.timeEnd.bind(console, "[WorkerWare]");
