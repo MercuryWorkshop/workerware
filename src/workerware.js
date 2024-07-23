@@ -1,4 +1,4 @@
-importScripts("./WWError.js");
+importScripts("/workerware/WWError.js");
 const dbg = console.log.bind(console, "[WorkerWare]");
 const time = console.time.bind(console, "[WorkerWare]");
 const timeEnd = console.timeEnd.bind(console, "[WorkerWare]");
@@ -13,7 +13,7 @@ const timeEnd = console.timeEnd.bind(console, "[WorkerWare]");
 const defaultOpt = {
   debug: false,
   randomNames: false,
-  timing: false
+  timing: false,
 };
 
 const validEvents = [
@@ -49,7 +49,7 @@ class WorkerWare {
       version: "0.1.0",
       middlewares: this._middlewares,
       options: this._opt,
-    }
+    };
   }
   use(middleware) {
     let validateMW = this.validateMiddleware(middleware);
@@ -68,14 +68,16 @@ class WorkerWare {
     let fn = async () => {
       for (let i = 0; i < middlewares.length; i++) {
         if (middlewares[i].events.includes(event.type)) {
-          if (this._opt.timing) console.time(middlewares[i].name)
+          if (this._opt.timing) console.time(middlewares[i].name);
           // Add the configuration to the event object.
           event.workerware = {
             config: middlewares[i].configuration || {},
           };
-          let res = await middlewares[i].function(event);
-          if (this._opt.timing) console.timeEnd(middlewares[i].name)
-          returnList.push(res);
+          if (!middlewares[i].explicitCall) {
+            let res = await middlewares[i].function(event);
+            if (this._opt.timing) console.timeEnd(middlewares[i].name);
+            returnList.push(res);
+          }
         }
       }
       return returnList;
@@ -97,19 +99,37 @@ class WorkerWare {
     Run a single middleware by ID.
     This assumes that the user knows what they're doing, and is running the middleware on an event that it's supposed to run on.
   */
-  runMW(id, event) {
+  runMW(name, event) {
     const middlewares = this._middlewares;
-    if (this._opt.debug) dbg("Running middleware:", id);
-    if (middlewares.includes(id)) {
-      return middlewares[id](event);
+    if (this._opt.debug) dbg("Running middleware:", name);
+    // if (middlewares.includes(name)) {
+    //   return middlewares[name](event);
+    // } else {
+    //   throw new WWError("Middleware not found!");
+    // }
+    let didCall = false;
+    for (let i = 0; i < middlewares.length; i++) {
+      if (middlewares[i].name == name) {
+        didCall = true;
+        event.workerware = {
+          config: middlewares[i].configuration || {},
+        }
+        if (this._opt.timing) console.time(middlewares[i].name);
+        let call = middlewares[i].function(event);
+        if (this._opt.timing) console.timeEnd(middlewares[i].name);
+        return call;
+      }
+    }
+    if (!didCall) {
+      throw new WWError("Middleware not found!");
     }
   }
-// type middlewareManifest = {
-//     function: Function,
-//     name?: string,
-//     events: string[], // Should be a union of validEvents.
-//     configuration?: Object // Optional configuration for the middleware.
-// }
+  // type middlewareManifest = {
+  //     function: Function,
+  //     name?: string,
+  //     events: string[], // Should be a union of validEvents.
+  //     configuration?: Object // Optional configuration for the middleware.
+  // }
   validateMiddleware(middleware) {
     if (!middleware.function)
       return {
@@ -136,6 +156,11 @@ class WorkerWare {
       return {
         error: "Invalid event type! Must be one of the following: " + validEvents.join(", "),
       };
+    if (middleware.explicitCall && typeof middleware.explicitCall !== "boolean") {
+      return {
+        error: "middleware.explicitCall must be typeof boolean",
+      };
+    }
     return {
       error: undefined,
     };
